@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>NEZUO FEED REALTIME + UID CHECK</title>
+<title>NEZUO FEED REALTIME ADMIN CMS</title>
 
 <style>
 body {
@@ -51,10 +51,10 @@ header {
 
 .msg-header {
   padding: 8px;
-  cursor: pointer;
   display: flex;
   justify-content: space-between;
   background: #0f172a;
+  cursor: pointer;
 }
 
 .title {
@@ -85,7 +85,7 @@ header {
   border-radius: 4px;
 }
 
-/* INPUT */
+/* INPUT (ADMIN ONLY) */
 #inputArea {
   position: fixed;
   bottom: 0;
@@ -93,7 +93,7 @@ header {
   right: 0;
   background: #111827;
   padding: 8px;
-  display: flex;
+  display: none;
   flex-direction: column;
   gap: 6px;
   border-top: 1px solid #1f2937;
@@ -124,44 +124,34 @@ button {
   border-radius: 8px;
 }
 
-/* UID TOOL */
-#uidTool {
+/* ADMIN BUTTON */
+#loginBtn {
   position: fixed;
-  top: 80px;
+  top: 60px;
   right: 10px;
-  width: 240px;
-  background: #111827;
-  border: 1px solid #1f2937;
-  border-radius: 10px;
-  padding: 8px;
+  background: #10b981;
+  border: none;
+  color: white;
+  padding: 8px 10px;
+  border-radius: 8px;
   font-size: 12px;
-}
-
-#uidTool input {
-  margin-bottom: 6px;
 }
 </style>
 </head>
 
 <body>
 
-<header>NEZUO FEED REALTIME</header>
+<header>NEZUO FEED REALTIME (ADMIN CMS)</header>
 
-<div id="uidBar">UID: 読み込み中...</div>
+<div id="uidBar">読み込み中...</div>
+<button id="loginBtn">管理者ログイン</button>
+
 <div id="feed"></div>
-
-<!-- UID TOOL -->
-<div id="uidTool">
-  <input id="uidCheckInput" placeholder="UIDチェック" />
-  <button onclick="checkUID()">確認</button>
-  <button onclick="loadUIDList()">UID一覧</button>
-  <div id="uidResult" style="margin-top:6px;white-space:pre-wrap;"></div>
-</div>
 
 <div id="inputArea">
   <input id="title" placeholder="タイトル" />
   <textarea id="text" placeholder="メッセージ入力"></textarea>
-  <button onclick="send()">送信</button>
+  <button onclick="send()">投稿</button>
 </div>
 
 <script type="module">
@@ -172,15 +162,19 @@ import {
   push,
   onValue,
   remove,
-  update,
-  set,
-  get,
-  child
+  update
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+import {
+  getAuth,
+  signInWithPopup,
+  GoogleAuthProvider,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 /* ===== Firebase ===== */
 const firebaseConfig = {
-  apiKey: "AIzaSyDQMt9IbdNAkozbobhnQXy8Xp__C8ApmlM",
+  apiKey: "AIzaSyDQMt9IbdNAkozbobhnXQ8Xp__C8ApmlM",
   authDomain: "nezuofeed.firebaseapp.com",
   databaseURL: "https://nezuofeed-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "nezuofeed",
@@ -193,45 +187,34 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const chatRef = ref(db, "chat/messages");
 
-/* ===== UID ===== */
-function genUID(){
-  return Math.random().toString(36).slice(2,10).toUpperCase();
-}
+/* ===== AUTH ===== */
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
 
-let uid = null;
-let uidReady = false;
+const ADMIN_EMAIL = "your@gmail.com";
 
-/* ===== UID INIT（確実版）===== */
-async function initUID(){
+let isAdmin = false;
 
-  uid = localStorage.getItem("uid");
+/* ===== LOGIN ===== */
+document.getElementById("loginBtn").onclick = async () => {
+  await signInWithPopup(auth, provider);
+};
 
-  if(!uid){
-    uid = genUID();
+/* ===== AUTH STATE ===== */
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    isAdmin = (user.email === ADMIN_EMAIL);
 
-    await set(ref(db, `users/${uid}`), {
-      name: "ねづお",
-      createdAt: Date.now()
-    });
+    document.getElementById("uidBar").textContent =
+      "UID: " + user.uid + (isAdmin ? " ｜ ADMIN" : "");
 
-    localStorage.setItem("uid", uid);
-  } else {
-    const snap = await get(child(ref(db), `users/${uid}`));
-
-    if(!snap.exists()){
-      await set(ref(db, `users/${uid}`), {
-        name: "ねづお",
-        createdAt: Date.now()
-      });
+    if (isAdmin) {
+      document.getElementById("inputArea").style.display = "flex";
     }
+  } else {
+    document.getElementById("uidBar").textContent =
+      "閲覧モード（ログインなし）";
   }
-
-  document.getElementById("uidBar").textContent = "UID: " + uid;
-  uidReady = true;
-}
-
-initUID().then(()=>{
-  console.log("UID READY:", uid);
 });
 
 /* ===== RENDER ===== */
@@ -252,9 +235,10 @@ function render(data){
       <div class="msg-header" onclick="toggle('${id}', ${m.collapsed})">
         <div>
           <div class="title">${m.title || "無題"}</div>
-          <div class="meta">${m.uid} • ${new Date(m.time).toLocaleString()}</div>
+          <div class="meta">${m.uid || "guest"} • ${new Date(m.time).toLocaleString()}</div>
         </div>
-        <button class="delBtn" onclick="event.stopPropagation(); del('${id}')">削除</button>
+
+        ${isAdmin ? `<button class="delBtn" onclick="event.stopPropagation(); del('${id}')">削除</button>` : ""}
       </div>
 
       <div class="msg-body">
@@ -273,22 +257,19 @@ onValue(chatRef, (snapshot)=>{
   render(snapshot.val());
 });
 
-/* ===== SEND ===== */
-window.send = ()=>{
-  if(!uidReady || !uid){
-    alert("UID未初期化");
-    return;
-  }
+/* ===== SEND (ADMIN ONLY) ===== */
+window.send = () => {
+  if (!isAdmin) return;
 
   const title = document.getElementById("title").value;
   const text = document.getElementById("text").value;
 
-  if(!text) return;
+  if (!text) return;
 
   push(chatRef, {
     title: title || "無題",
     text,
-    uid,
+    uid: "ADMIN",
     time: Date.now(),
     collapsed: true
   });
@@ -304,37 +285,10 @@ window.toggle = (id,current)=>{
   });
 };
 
-/* ===== DELETE ===== */
+/* ===== DELETE (ADMIN ONLY) ===== */
 window.del = (id)=>{
+  if(!isAdmin) return;
   remove(ref(db, `chat/messages/${id}`));
-};
-
-/* ===== UID CHECK ===== */
-window.checkUID = async () => {
-  const target = document.getElementById("uidCheckInput").value.trim();
-  if(!target) return;
-
-  const snap = await get(child(ref(db), `users/${target}`));
-
-  const result = document.getElementById("uidResult");
-
-  if(snap.exists()){
-    const data = snap.val();
-    result.textContent = `存在: ${target}\n名前: ${data.name}`;
-  } else {
-    result.textContent = `存在しないUID: ${target}`;
-  }
-};
-
-/* ===== UID LIST ===== */
-window.loadUIDList = async () => {
-  const snap = await get(ref(db, "users"));
-  const data = snap.val() || {};
-
-  const list = Object.keys(data);
-
-  document.getElementById("uidResult").textContent =
-    `UID一覧(${list.length})\n\n` + list.join("\n");
 };
 </script>
 
