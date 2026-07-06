@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>NEZUO FEED ADMIN ONLY</title>
+<title>NEZUO FEED FINAL</title>
 
 <style>
 body {
@@ -52,7 +52,6 @@ header {
   display: flex;
   justify-content: space-between;
   background: #0f172a;
-  cursor: pointer;
 }
 
 .title { font-weight: bold; }
@@ -114,15 +113,15 @@ button {
 
 <body>
 
-<header>NEZUO FEED (ADMIN ONLY)</header>
+<header>NEZUO FEED FINAL</header>
 
-<div id="status">初期化中...</div>
+<div id="status">認証中...</div>
 <div id="feed"></div>
 
 <div id="inputArea">
   <input id="title" placeholder="タイトル" />
   <textarea id="text" placeholder="メッセージ入力"></textarea>
-  <button onclick="send()">投稿（ねづお専用）</button>
+  <button onclick="send()">投稿</button>
 </div>
 
 <script type="module">
@@ -132,19 +131,13 @@ import {
   ref,
   push,
   onValue,
-  set,
-  get,
-  child,
-  remove,
-  update
+  remove
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 import {
   getAuth,
   signInAnonymously,
-  onAuthStateChanged,
-  setPersistence,
-  browserLocalPersistence
+  onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 /* ================= Firebase ================= */
@@ -155,8 +148,7 @@ const firebaseConfig = {
   projectId: "nezuofeed",
   storageBucket: "nezuofeed.firebasestorage.app",
   messagingSenderId: "518954118208",
-  appId: "1:518954118208:web:1c560418c274732c4d83a5",
-  measurementId: "G-W0XKB10WH6"
+  appId: "1:518954118208:web:1c560418c274732c4d83a5"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -165,39 +157,26 @@ const auth = getAuth(app);
 
 const chatRef = ref(db, "chat/messages");
 
-/* ================= ADMIN ================= */
-const ADMIN_UID = "7VVG6R";
-const ADMIN_NAME = "ねづお";
-
-let firebaseUID = null;
-let isReady = false;
-
 /* ================= AUTH ================= */
-async function initAuth(){
-  try {
-    await setPersistence(auth, browserLocalPersistence);
-    await signInAnonymously(auth);
-  } catch (e) {
-    console.error(e);
-    document.getElementById("status").textContent =
-      "認証失敗";
-  }
-}
+let authUid = null;
 
-initAuth();
+signInAnonymously(auth);
 
-/* ================= STATE ================= */
 onAuthStateChanged(auth, (user) => {
   if (!user) return;
+  authUid = user.uid;
 
-  firebaseUID = user.uid;
-  isReady = true;
-
-  document.getElementById("status").textContent =
-    firebaseUID === ADMIN_UID
-      ? "ねづお（管理者ログイン）"
-      : "閲覧モード（投稿不可）";
+  document.getElementById("status").innerHTML =
+    `UID: ${authUid}`;
 });
+
+/* ================= PUBLIC UID ================= */
+let publicId = localStorage.getItem("publicId");
+
+if (!publicId) {
+  publicId = "NEZUO-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+  localStorage.setItem("publicId", publicId);
+}
 
 /* ================= FEED ================= */
 const feed = document.getElementById("feed");
@@ -214,17 +193,16 @@ function render(data){
     div.classList.toggle("open", !m.collapsed);
 
     div.innerHTML = `
-      <div class="msg-header" onclick="toggle('${id}', ${m.collapsed})">
+      <div class="msg-header">
         <div>
           <div class="title">${m.title || "無題"}</div>
           <div class="meta">
-            ${m.uid === ADMIN_UID ? "ねづお（管理者）" : "閲覧ユーザー"}
+            ${m.publicId}
             • ${new Date(m.time).toLocaleString()}
           </div>
         </div>
 
-        <button class="delBtn"
-          onclick="event.stopPropagation(); del('${id}')">
+        <button class="delBtn" onclick="del('${id}')">
           削除
         </button>
       </div>
@@ -242,7 +220,7 @@ onValue(chatRef, (snap)=>{
 
 /* ================= SEND ================= */
 window.send = () => {
-  if (!isReady || firebaseUID !== ADMIN_UID) return;
+  if (!authUid) return;
 
   const title = document.getElementById("title").value;
   const text = document.getElementById("text").value;
@@ -252,9 +230,9 @@ window.send = () => {
   push(chatRef, {
     title: title || "無題",
     text,
-    uid: firebaseUID,
-    nezuoId: ADMIN_NAME,
     time: Date.now(),
+    authUid,
+    publicId,
     collapsed: true
   });
 
@@ -264,15 +242,7 @@ window.send = () => {
 
 /* ================= DELETE ================= */
 window.del = (id) => {
-  if (firebaseUID !== ADMIN_UID) return;
   remove(ref(db, `chat/messages/${id}`));
-};
-
-/* ================= TOGGLE ================= */
-window.toggle = (id, current) => {
-  update(ref(db, `chat/messages/${id}`), {
-    collapsed: !current
-  });
 };
 </script>
 
