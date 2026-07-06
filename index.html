@@ -146,14 +146,16 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const chatRef = ref(db, "chat/messages");
 
-/* ================= UID（内部のみ） ================= */
+/* ================= UID（管理者固定端末対応） ================= */
 function getUID() {
-  let uid =
-    localStorage.getItem("uid") ||
-    sessionStorage.getItem("uid");
+  let uid = localStorage.getItem("uid");
 
   if (!uid) {
-    uid = crypto.randomUUID();
+    const ADMIN_DEVICE = true; 
+    uid = ADMIN_DEVICE
+      ? "JO9YQ7RM"
+      : crypto.randomUUID();
+
     localStorage.setItem("uid", uid);
     sessionStorage.setItem("uid", uid);
   }
@@ -161,7 +163,7 @@ function getUID() {
   return uid;
 }
 
-/* ================= 管理者 ================= */
+/* ================= 管理者判定 ================= */
 const ADMIN_UID = "JO9YQ7RM";
 const ADMIN_NAME = "ねづお";
 
