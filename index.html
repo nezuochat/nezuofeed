@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>NEZUO FEED MAX</title>
+<title>NEZUO FEED MAX (AUTH FIX)</title>
 
 <style>
 body {
@@ -114,9 +114,9 @@ button {
 
 <body>
 
-<header>NEZUO FEED MAX SYSTEM</header>
+<header>NEZUO FEED MAX (AUTH FIX)</header>
 
-<div id="status">認証中...</div>
+<div id="status">認証準備中...</div>
 <div id="feed"></div>
 
 <div id="inputArea">
@@ -163,11 +163,11 @@ const auth = getAuth(app);
 const chatRef = ref(db, "chat/messages");
 const usersRef = ref(db, "users");
 
-/* ================= UID / NEZUO ID ================= */
 let firebaseUID = null;
 let nezuoId = null;
+let isReady = false;
 
-/* ランダムNEZUO ID生成 */
+/* ================= UID生成 ================= */
 function generateNezuoId(){
   const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
   let id = "NEZUO-";
@@ -177,18 +177,28 @@ function generateNezuoId(){
   return id;
 }
 
-/* ================= AUTH ================= */
-signInAnonymously(auth);
+/* ================= AUTH（安定版） ================= */
+async function initAuth(){
+  try {
+    await signInAnonymously(auth);
+  } catch (e) {
+    document.getElementById("status").textContent =
+      "認証エラー";
+  }
+}
 
+initAuth();
+
+/* ================= 認証監視 ================= */
 onAuthStateChanged(auth, async (user) => {
   if (!user) return;
 
   firebaseUID = user.uid;
 
-  const userSnap = await get(child(usersRef, firebaseUID));
+  const snap = await get(child(usersRef, firebaseUID));
 
-  if (userSnap.exists()) {
-    nezuoId = userSnap.val().nezuoId;
+  if (snap.exists()) {
+    nezuoId = snap.val().nezuoId;
   } else {
     nezuoId = generateNezuoId();
     await set(ref(db, `users/${firebaseUID}`), {
@@ -197,6 +207,8 @@ onAuthStateChanged(auth, async (user) => {
       banned: false
     });
   }
+
+  isReady = true;
 
   document.getElementById("status").textContent =
     `NEZUO ID: ${nezuoId} ｜ UID: ${firebaseUID}`;
@@ -242,10 +254,12 @@ onValue(chatRef, (snap)=>{
 
 /* ================= SEND ================= */
 window.send = () => {
+  if (!isReady || !nezuoId) return;
+
   const title = document.getElementById("title").value;
   const text = document.getElementById("text").value;
 
-  if (!text || !nezuoId) return;
+  if (!text) return;
 
   push(chatRef, {
     title: title || "無題",
