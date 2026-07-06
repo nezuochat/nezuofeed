@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>NEZUO FEED STABLE</title>
+<title>NEZUO FEED</title>
 
 <style>
 body {
@@ -22,13 +22,6 @@ header {
   background: #111827;
   text-align: center;
   font-weight: bold;
-}
-
-#uidBar {
-  padding: 6px 10px;
-  font-size: 12px;
-  background: #0b1220;
-  color: #93c5fd;
 }
 
 #feed {
@@ -72,6 +65,15 @@ header {
   display: block;
 }
 
+.delBtn {
+  background: #dc2626;
+  border: none;
+  color: white;
+  font-size: 11px;
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+
 #inputArea {
   position: fixed;
   bottom: 0;
@@ -79,7 +81,7 @@ header {
   right: 0;
   background: #111827;
   padding: 8px;
-  display: flex;
+  display: none;
   flex-direction: column;
   gap: 6px;
   border-top: 1px solid #1f2937;
@@ -103,27 +105,12 @@ button {
   color: white;
   border-radius: 8px;
 }
-
-#copyBtn {
-  position: fixed;
-  top: 60px;
-  right: 10px;
-  background: #10b981;
-  border: none;
-  color: white;
-  padding: 8px 10px;
-  border-radius: 8px;
-  font-size: 12px;
-}
 </style>
 </head>
 
 <body>
 
-<header>NEZUO FEED STABLE</header>
-
-<div id="uidBar">UID: loading...</div>
-<button id="copyBtn" onclick="copyUID()">UIDコピー</button>
+<header>NEZUO FEED</header>
 
 <div id="feed"></div>
 
@@ -140,6 +127,7 @@ import {
   ref,
   push,
   onValue,
+  remove,
   update
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
@@ -158,41 +146,28 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const chatRef = ref(db, "chat/messages");
 
-/* ================= UID（完全安定版） ================= */
+/* ================= UID（内部のみ） ================= */
 function getUID() {
-  try {
-    let uid =
-      localStorage.getItem("uid") ||
-      sessionStorage.getItem("uid");
+  let uid =
+    localStorage.getItem("uid") ||
+    sessionStorage.getItem("uid");
 
-    if (!uid) {
-      uid =
-        crypto.randomUUID() +
-        "-" +
-        Math.random().toString(36).slice(2);
-
-      localStorage.setItem("uid", uid);
-      sessionStorage.setItem("uid", uid);
-    }
-
-    return uid;
-  } catch (e) {
-    return "guest-" + Math.random().toString(36).slice(2);
+  if (!uid) {
+    uid = crypto.randomUUID();
+    localStorage.setItem("uid", uid);
+    sessionStorage.setItem("uid", uid);
   }
+
+  return uid;
 }
 
-/* ================= UID表示 ================= */
-function showUID() {
-  document.getElementById("uidBar").textContent =
-    "UID: " + getUID();
-}
-showUID();
+/* ================= 管理者 ================= */
+const ADMIN_UID = "JO9YQ7RM";
+const ADMIN_NAME = "ねづお";
 
-/* ================= COPY UID ================= */
-window.copyUID = () => {
-  navigator.clipboard.writeText(getUID());
-  alert("UIDコピーしました");
-};
+function isAdmin() {
+  return getUID() === ADMIN_UID;
+}
 
 /* ================= RENDER ================= */
 const feed = document.getElementById("feed");
@@ -216,6 +191,13 @@ function render(data){
           <div class="title">${m.title || "無題"}</div>
           <div class="meta">${uid} • ${new Date(m.time).toLocaleString()}</div>
         </div>
+
+        ${isAdmin() ? `
+          <button class="delBtn"
+            onclick="event.stopPropagation(); del('${id}')">
+            削除
+          </button>
+        ` : ""}
       </div>
 
       <div class="msg-body">${m.text || ""}</div>
@@ -226,32 +208,37 @@ function render(data){
 }
 
 onValue(chatRef, (snap)=>{
-  try {
-    render(snap.val());
-  } catch (e) {
-    console.error("render error:", e);
-  }
+  render(snap.val());
 });
 
-/* ================= SEND（全員OK） ================= */
+/* ================= SEND（管理者のみ） ================= */
 window.send = () => {
+  if (!isAdmin()) {
+    alert("管理者のみ投稿できます");
+    return;
+  }
+
   const title = document.getElementById("title").value;
   const text = document.getElementById("text").value;
 
   if (!text) return;
 
-  const uid = getUID();
-
   push(chatRef, {
     title: title || "無題",
-    text: text,
-    uid: uid,
+    text,
+    uid: ADMIN_NAME,
     time: Date.now(),
     collapsed: true
   });
 
   document.getElementById("title").value = "";
   document.getElementById("text").value = "";
+};
+
+/* ================= DELETE ================= */
+window.del = (id)=>{
+  if(!isAdmin()) return;
+  remove(ref(db, `chat/messages/${id}`));
 };
 
 /* ================= TOGGLE ================= */
