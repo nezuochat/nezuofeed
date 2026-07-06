@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>NEZUO FEED REALTIME ADMIN CMS</title>
+<title>NEZUO FEED REALTIME CMS</title>
 
 <style>
 body {
@@ -38,15 +38,13 @@ header {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding-bottom: 200px;
+  padding-bottom: 180px;
 }
 
-/* CARD */
 .msg {
   background: #111827;
   border: 1px solid #1f2937;
   border-radius: 10px;
-  overflow: hidden;
 }
 
 .msg-header {
@@ -57,9 +55,7 @@ header {
   cursor: pointer;
 }
 
-.title {
-  font-weight: bold;
-}
+.title { font-weight: bold; }
 
 .meta {
   font-size: 11px;
@@ -85,7 +81,6 @@ header {
   border-radius: 4px;
 }
 
-/* INPUT (ADMIN ONLY) */
 #inputArea {
   position: fixed;
   bottom: 0;
@@ -110,12 +105,6 @@ input, textarea {
   outline: none;
 }
 
-textarea {
-  min-height: 42px;
-  max-height: 120px;
-  resize: none;
-}
-
 button {
   padding: 12px;
   background: #2563eb;
@@ -124,7 +113,6 @@ button {
   border-radius: 8px;
 }
 
-/* ADMIN BUTTON */
 #loginBtn {
   position: fixed;
   top: 60px;
@@ -141,10 +129,10 @@ button {
 
 <body>
 
-<header>NEZUO FEED REALTIME (ADMIN CMS)</header>
+<header>NEZUO FEED CMS</header>
 
-<div id="uidBar">読み込み中...</div>
-<button id="loginBtn">管理者ログイン</button>
+<div id="uidBar">未ログイン</div>
+<button id="loginBtn">Googleログイン</button>
 
 <div id="feed"></div>
 
@@ -172,7 +160,9 @@ import {
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-/* ===== Firebase ===== */
+/* =========================
+   Firebase Config
+========================= */
 const firebaseConfig = {
   apiKey: "AIzaSyDQMt9IbdNAkozbobhnXQ8Xp__C8ApmlM",
   authDomain: "nezuofeed.firebaseapp.com",
@@ -187,37 +177,41 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const chatRef = ref(db, "chat/messages");
 
-/* ===== AUTH ===== */
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
-const ADMIN_EMAIL = "your@gmail.com";
+/* =========================
+   ADMIN UID ONLY
+========================= */
+const ADMIN_UID = "PUT_ADMIN_UID_HERE";
 
 let isAdmin = false;
 
-/* ===== LOGIN ===== */
+/* LOGIN */
 document.getElementById("loginBtn").onclick = async () => {
   await signInWithPopup(auth, provider);
 };
 
-/* ===== AUTH STATE ===== */
+/* AUTH */
 onAuthStateChanged(auth, (user) => {
   if (user) {
-    isAdmin = (user.email === ADMIN_EMAIL);
+
+    isAdmin = (user.uid === ADMIN_UID);
 
     document.getElementById("uidBar").textContent =
       "UID: " + user.uid + (isAdmin ? " ｜ ADMIN" : "");
 
-    if (isAdmin) {
-      document.getElementById("inputArea").style.display = "flex";
-    }
+    document.getElementById("inputArea").style.display =
+      isAdmin ? "flex" : "none";
+
   } else {
-    document.getElementById("uidBar").textContent =
-      "閲覧モード（ログインなし）";
+    isAdmin = false;
+    document.getElementById("uidBar").textContent = "未ログイン";
+    document.getElementById("inputArea").style.display = "none";
   }
 });
 
-/* ===== RENDER ===== */
+/* RENDER */
 const feed = document.getElementById("feed");
 
 function render(data){
@@ -241,23 +235,18 @@ function render(data){
         ${isAdmin ? `<button class="delBtn" onclick="event.stopPropagation(); del('${id}')">削除</button>` : ""}
       </div>
 
-      <div class="msg-body">
-        ${m.text}
-      </div>
+      <div class="msg-body">${m.text}</div>
     `;
 
     feed.appendChild(div);
   });
-
-  feed.scrollTop = feed.scrollHeight;
 }
 
-/* ===== REALTIME ===== */
-onValue(chatRef, (snapshot)=>{
-  render(snapshot.val());
+onValue(chatRef, (snap)=>{
+  render(snap.val());
 });
 
-/* ===== SEND (ADMIN ONLY) ===== */
+/* SEND */
 window.send = () => {
   if (!isAdmin) return;
 
@@ -278,14 +267,14 @@ window.send = () => {
   document.getElementById("text").value = "";
 };
 
-/* ===== TOGGLE ===== */
+/* TOGGLE */
 window.toggle = (id,current)=>{
   update(ref(db, `chat/messages/${id}`), {
     collapsed: !current
   });
 };
 
-/* ===== DELETE (ADMIN ONLY) ===== */
+/* DELETE */
 window.del = (id)=>{
   if(!isAdmin) return;
   remove(ref(db, `chat/messages/${id}`));
