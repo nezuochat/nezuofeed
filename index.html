@@ -3,119 +3,113 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>NEZUO FEED STABLE</title>
+<title>NEZUO FEED</title>
 
 <style>
-body {
-  margin: 0;
-  font-family: system-ui;
-  background: #0f172a;
-  color: #e2e8f0;
-  height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
+  body {
+    margin: 0;
+    font-family: system-ui;
+    background: #0f172a;
+    color: #e2e8f0;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
 
-header {
-  padding: 10px;
-  background: #111827;
-  text-align: center;
-  font-weight: bold;
-}
+  header {
+    padding: 10px;
+    background: #111827;
+    text-align: center;
+    font-weight: bold;
+  }
 
-#status {
-  padding: 6px 10px;
-  font-size: 12px;
-  background: #0b1220;
-  color: #93c5fd;
-}
+  #status {
+    padding: 6px 10px;
+    font-size: 12px;
+    background: #0b1220;
+    color: #93c5fd;
+  }
 
-#feed {
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding-bottom: 160px;
-}
+  #feed {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-bottom: 140px;
+  }
 
-.msg {
-  background: #111827;
-  border: 1px solid #1f2937;
-  border-radius: 10px;
-}
+  .msg {
+    background: #111827;
+    border: 1px solid #1f2937;
+    border-radius: 10px;
+    padding: 8px;
+  }
 
-.msg-header {
-  padding: 8px;
-  display: flex;
-  justify-content: space-between;
-  background: #0f172a;
-}
+  .msg-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
 
-.title { font-weight: bold; }
-.meta { font-size: 11px; color: #64748b; }
+  .title { font-weight: bold; }
+  .meta { font-size: 11px; color: #64748b; }
 
-.msg-body {
-  padding: 8px;
-  white-space: pre-wrap;
-}
+  .msg-body { white-space: pre-wrap; }
 
-.delBtn {
-  background: #dc2626;
-  border: none;
-  color: white;
-  font-size: 11px;
-  padding: 3px 6px;
-  border-radius: 4px;
-  cursor: pointer;
-}
+  .delBtn {
+    background: #dc2626;
+    border: none;
+    color: white;
+    padding: 3px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
 
-#inputArea {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: #111827;
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  border-top: 1px solid #1f2937;
-}
+  #inputArea {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #111827;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
 
-input, textarea {
-  width: 100%;
-  border: none;
-  border-radius: 8px;
-  padding: 10px;
-  background: #0f172a;
-  color: #e2e8f0;
-  outline: none;
-}
+  input, textarea {
+    width: 100%;
+    border: none;
+    border-radius: 8px;
+    padding: 10px;
+    background: #0f172a;
+    color: #e2e8f0;
+    box-sizing: border-box;
+  }
 
-button {
-  padding: 12px;
-  background: #2563eb;
-  border: none;
-  color: white;
-  border-radius: 8px;
-}
+  button {
+    padding: 10px;
+    background: #2563eb;
+    border: none;
+    color: white;
+    border-radius: 8px;
+    cursor: pointer;
+  }
 </style>
 </head>
 
 <body>
 
-<header>NEZUO FEED</header>
-
-<div id="status">接続中...</div>
+<header>NEZUO FEED (OPEN)</header>
+<div id="status">認証中...</div>
 <div id="feed"></div>
 
 <div id="inputArea">
   <input id="title" placeholder="タイトル" />
   <textarea id="text" placeholder="メッセージ"></textarea>
-  <button onclick="send()">投稿</button>
+  <button id="sendBtn">投稿</button>
 </div>
 
 <script type="module">
@@ -134,130 +128,121 @@ import {
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-/* ===== Firebase設定 ===== */
 const firebaseConfig = {
-  apiKey: "XXX",
-  authDomain: "XXX",
-  databaseURL: "XXX",
-  projectId: "XXX"
+  apiKey: "AIzaSyDQMt9IbdNAkozbobhnXy8X8p__C8ApmlM",
+  authDomain: "nezuofeed.firebaseapp.com",
+  databaseURL: "https://nezuofeed-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "nezuofeed",
+  storageBucket: "nezuofeed.firebasestorage.app",
+  messagingSenderId: "518954118208",
+  appId: "1:518954118208:web:1c560418c274732c4d83a5",
+  measurementId: "G-W0XKB10WH6"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
-
 const chatRef = ref(db, "chat/messages");
 
-const status = document.getElementById("status");
-const feed = document.getElementById("feed");
+let uid = null;
 
-let authUid = null;
-let authReady = false;
-
-/* ===== 匿名認証（安定版） ===== */
-async function initAuth() {
-  try {
-    status.textContent = "認証中...";
-
-    await signInAnonymously(auth);
-
-  } catch (e) {
-    console.error("認証失敗:", e);
-    status.textContent = "認証失敗: " + e.code;
-  }
+/* -----------------------------
+   UIDキャッシュ（UX改善）
+------------------------------*/
+const cachedUid = localStorage.getItem("uid_cache");
+if (cachedUid) {
+  document.getElementById("status").textContent = "UID: " + cachedUid + " (cached)";
 }
 
-/* ===== 認証状態監視 ===== */
+/* -----------------------------
+   匿名認証 + UID固定
+------------------------------*/
 onAuthStateChanged(auth, (user) => {
-  if (!user) {
-    authReady = false;
-    status.textContent = "未認証";
-    return;
+  if (user) {
+    uid = user.uid;
+
+    // キャッシュ保存
+    localStorage.setItem("uid_cache", uid);
+
+    document.getElementById("status").textContent = "UID: " + uid;
+  } else {
+    signInAnonymously(auth);
   }
-
-  authUid = user.uid;
-  authReady = true;
-
-  status.textContent = "UID: " + authUid;
 });
 
-/* ===== 公開ID（端末固定） ===== */
-let publicId = localStorage.getItem("publicId");
-
-if (!publicId) {
-  publicId = "NEZUO-" + Math.random().toString(36).slice(2, 8).toUpperCase();
-  localStorage.setItem("publicId", publicId);
-}
-
-/* ===== 表示 ===== */
-function render(data) {
+/* -----------------------------
+   取得
+------------------------------*/
+onValue(chatRef, (snap) => {
+  const data = snap.val();
+  const feed = document.getElementById("feed");
   feed.innerHTML = "";
 
-  const arr = Object.entries(data || {})
-    .sort((a, b) => b[1].time - a[1].time);
+  if (!data) return;
 
-  arr.forEach(([id, m]) => {
-    const canDelete = authUid && m.authUid === authUid;
+  Object.entries(data)
+    .sort((a, b) => b[1].time - a[1].time)
+    .forEach(([id, m]) => {
 
-    const div = document.createElement("div");
-    div.className = "msg";
+      const isMine = m.uid === uid;
 
-    div.innerHTML = `
-      <div class="msg-header">
-        <div>
-          <div class="title">${m.title || "無題"}</div>
-          <div class="meta">
-            ${m.publicId} • ${new Date(m.time).toLocaleString()}
+      const div = document.createElement("div");
+      div.className = "msg";
+
+      div.innerHTML = `
+        <div class="msg-header">
+          <div>
+            <div class="title">${m.title || "無題"}</div>
+            <div class="meta">${m.uid || "unknown"}</div>
           </div>
+
+          ${isMine ? `
+            <button class="delBtn" onclick="delMsg('${id}', '${m.uid}')">
+              削除
+            </button>
+          ` : ""}
         </div>
 
-        ${canDelete ? `<button class="delBtn" onclick="del('${id}')">削除</button>` : ""}
-      </div>
+        <div class="msg-body">${m.text}</div>
+      `;
 
-      <div class="msg-body">${m.text || ""}</div>
-    `;
-
-    feed.appendChild(div);
-  });
-}
-
-/* ===== リアルタイム ===== */
-onValue(chatRef, (snap) => {
-  console.log("DB OK");
-  render(snap.val());
+      feed.appendChild(div);
+    });
 });
 
-/* ===== 投稿 ===== */
-window.send = () => {
-  if (!authReady || !authUid) {
-    alert("認証中です。少し待ってください");
-    return;
-  }
-
+/* -----------------------------
+   投稿
+------------------------------*/
+document.getElementById("sendBtn").onclick = () => {
   const title = document.getElementById("title").value;
   const text = document.getElementById("text").value;
 
-  if (!text) return;
+  if (!text || !uid) return;
 
   push(chatRef, {
-    title: title || "無題",
+    title,
     text,
     time: Date.now(),
-    authUid,
-    publicId
+    uid
   });
 
   document.getElementById("title").value = "";
   document.getElementById("text").value = "";
 };
 
-/* ===== 削除 ===== */
-window.del = (id) => {
+/* -----------------------------
+   削除
+------------------------------*/
+window.delMsg = (id, ownerUid) => {
+  if (ownerUid !== uid) {
+    alert("自分の投稿のみ削除できます");
+    return;
+  }
+
+  if (!confirm("削除しますか？")) return;
+
   remove(ref(db, "chat/messages/" + id));
 };
-
-/* 起動 */
-initAuth();
 </script>
 
 </body>
