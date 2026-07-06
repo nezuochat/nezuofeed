@@ -122,7 +122,7 @@ button {
 <div id="inputArea">
   <input id="title" placeholder="タイトル" />
   <textarea id="text" placeholder="メッセージ入力"></textarea>
-  <button onclick="send()">投稿（管理者のみ）</button>
+  <button onclick="send()">投稿（ねづお専用）</button>
 </div>
 
 <script type="module">
@@ -164,7 +164,6 @@ const db = getDatabase(app);
 const auth = getAuth(app);
 
 const chatRef = ref(db, "chat/messages");
-const usersRef = ref(db, "users");
 
 /* ================= ADMIN ================= */
 const ADMIN_UID = "7VVG6R";
@@ -188,7 +187,7 @@ async function initAuth(){
 initAuth();
 
 /* ================= STATE ================= */
-onAuthStateChanged(auth, async (user) => {
+onAuthStateChanged(auth, (user) => {
   if (!user) return;
 
   firebaseUID = user.uid;
@@ -196,8 +195,8 @@ onAuthStateChanged(auth, async (user) => {
 
   document.getElementById("status").textContent =
     firebaseUID === ADMIN_UID
-      ? `管理者ログイン：ねづお`
-      : `閲覧モード（投稿不可）`;
+      ? "ねづお（管理者ログイン）"
+      : "閲覧モード（投稿不可）";
 });
 
 /* ================= FEED ================= */
